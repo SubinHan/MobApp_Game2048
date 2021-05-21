@@ -108,7 +108,7 @@ public class GameActivity extends AppCompatActivity implements IGameListener {
 
     @Override
     public void gameOver(SnapshotData snapshotData) {
-
+        ((HighscoreActivity) HighscoreActivity.context).insertToDB(snapshotData);
     }
 
     @Override

@@ -41,6 +41,9 @@ public class SettingsActivity extends AppCompatActivity {
 
         if(saveMusicData){
             backgroundMusic.setChecked(true);
+            Intent intent = new Intent(this, MusicService.class);
+            intent.putExtra(MusicService.MESSEAGE_KEY, true);
+            startService(intent);
         }
         backgroundMusic.setOnClickListener(v -> {
             Intent intent = new Intent(this, MusicService.class);
@@ -83,7 +86,7 @@ public class SettingsActivity extends AppCompatActivity {
         editor.apply();
     }
     public int getTimer(){
-        saveTimerData = appData.getInt("SAVE_TIMER_DATA",0);
+        saveTimerData = appData.getInt("SAVE_TIMER_DATA", 0);
         return saveTimerData;
     }
 }

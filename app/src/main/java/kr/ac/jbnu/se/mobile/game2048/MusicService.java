@@ -43,8 +43,12 @@ public class MusicService extends Service {
             }
             mNotifyManager.notify(001,mBuilder.build());
         }else{
-            mMediaPlayer.stop();
-            mMediaPlayer.release();
+            if(mMediaPlayer!=null){
+                if(mMediaPlayer.isPlaying()){
+                    mMediaPlayer.stop();
+                }
+                mMediaPlayer.release();
+            }
         }
         return START_NOT_STICKY;
     }
