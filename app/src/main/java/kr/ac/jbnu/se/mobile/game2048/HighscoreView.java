@@ -1,25 +1,24 @@
 package kr.ac.jbnu.se.mobile.game2048;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
-import android.graphics.drawable.LayerDrawable;
-import android.graphics.drawable.ScaleDrawable;
 import android.util.Log;
 import android.view.View;
 
-import java.util.ArrayList;
-
-public class MainView extends View {
+public class HighscoreView extends View {
 
     //Internal Constants
-    private static final String TAG = GameView.class.getSimpleName();
+    private static final String TAG = HighscoreView.class.getSimpleName();
+    public static final String DB_PATH = "score.db";
     //Internal variables
     private final Paint paint = new Paint();
     public int startingX;
@@ -27,9 +26,8 @@ public class MainView extends View {
     public int endingX;
     public int endingY;
 
-    Rectangle rStart;
-    Rectangle rHighscore;
-    Rectangle rSettings;
+    Rectangle rBack;
+    Rectangle[] rScores;
     //Text
     private float bodyTextSize;
     //Layout variables
@@ -40,12 +38,16 @@ public class MainView extends View {
     private Drawable backgroundRectangle;
     private Bitmap background = null;
 
+    DBHandler mHandler = null;
+    Cursor mCursor = null;
+    int scores[];
+
     Context context;
 
     private final int numSquaresX = 4;
     private final int numSquaresY = 4;
 
-    public MainView(Context context) {
+    public HighscoreView(Context context) {
         super(context);
 
         this.context = context;
@@ -61,6 +63,20 @@ public class MainView extends View {
 
         } catch (Exception e) {
             Log.e(TAG, "Error getting assets?", e);
+        }
+        initScores();
+
+    }
+
+    private void initScores() {
+        mHandler = DBHandler.open(context, DB_PATH);
+        mCursor = mHandler.select();
+        scores = new int[numSquaresX*numSquaresY];
+        mCursor.moveToFirst();
+
+        for(int i = 0; i < mCursor.getCount(); i++){
+            scores[i] = mCursor.getInt(1);
+            mCursor.moveToNext();
         }
     }
 
@@ -112,14 +128,13 @@ public class MainView extends View {
     }
 
     private void drawCells(Canvas canvas) {
-        drawCell(canvas, rStart, getResources().getDrawable(R.drawable.cell_rectangle_4), "Start Game", getResources().getColor(R.color.black));
-        drawCell(canvas, rHighscore, getResources().getDrawable(R.drawable.cell_rectangle_8), "Highscore", getResources().getColor(R.color.text_white));
-        drawCell(canvas, rSettings, getResources().getDrawable(R.drawable.cell_rectangle_1024), "", -1);
-        Drawable d = getResources().getDrawable(R.drawable.ic_settings);
-        LayerDrawable layerDrawable = new LayerDrawable(new Drawable[]{d});
-        int padding = 25;
-        layerDrawable.setLayerInset(0, padding, padding, padding, padding);
-        drawCell(canvas, rSettings, layerDrawable, "", -1);
+        for(int i = 0; i < scores.length; i++){
+            String scoreText = "";
+            if(scores[i] != 0)
+                scoreText = "" + scores[i];
+            drawCell(canvas, rScores[i], calculateScoreDrawable(i), scoreText, getResources().getColor(R.color.black));
+        }
+        drawCell(canvas, rBack, getResources().getDrawable(R.drawable.cell_rectangle_4), "Back", getResources().getColor(R.color.black));
     }
 
     private Rectangle calculateRectangle(int posX, int posY, int sizeX, int sizeY){
@@ -182,37 +197,16 @@ public class MainView extends View {
         paint.setTextSize(cellSize);
         bodyTextSize = (int) (textSize / 1.5);
 
-        rStart = calculateRectangle(0, 0, 3, 2);
-        rHighscore = calculateRectangle(0, 2, 2, 1);
-        rSettings = calculateRectangle(3, 3, 1, 1);
+        rBack = calculateRectangle(3, 3, 1, 1);
+        makeScoresRectangle();
 
         InputListener inputListener = new InputListener(this);
-        inputListener.addClickInputHandler(new IClickInputHandler() {
-            @Override
-            public void handle(float touchPosX, float touchPosY) {
-                if(isInRange(touchPosX, touchPosY, rStart)){
-                    Intent intent = new Intent(context, GameActivity.class);
-                    ((MainActivity)context).startActivityForResult(intent, 0);
-                }
-            }
-        });
 
         inputListener.addClickInputHandler(new IClickInputHandler() {
             @Override
             public void handle(float touchPosX, float touchPosY) {
-                if(isInRange(touchPosX, touchPosY, rHighscore)){
-                    Intent intent = new Intent(context, HighscoreActivity.class);
-                    context.startActivity(intent);
-                }
-            }
-        });
-
-        inputListener.addClickInputHandler(new IClickInputHandler() {
-            @Override
-            public void handle(float touchPosX, float touchPosY) {
-                if(isInRange(touchPosX, touchPosY, rSettings)){
-                    Intent intent = new Intent(context, SettingsActivity.class);
-                    context.startActivity(intent);
+                if(isInRange(touchPosX, touchPosY, rBack)){
+                    ((Activity)context).finish();
                 }
             }
         });
@@ -222,6 +216,37 @@ public class MainView extends View {
 
     private boolean isInRange(float posX, float posY, Rectangle range){
         return (range.getStartX() <= posX && posX <= range.getEndX()) && (range.getStartY() <= posY && posY <= range.getEndY());
+    }
+
+    private Drawable calculateScoreDrawable(int rank){
+        if(rank > 11)
+            return getResources().getDrawable(R.drawable.cell_rectangle_2);
+        else if(rank > 7)
+            return getResources().getDrawable(R.drawable.cell_rectangle_4);
+        else if(rank > 5)
+            return getResources().getDrawable(R.drawable.cell_rectangle_8);
+        else if(rank > 3)
+            return getResources().getDrawable(R.drawable.cell_rectangle_16);
+        else if(rank > 0)
+            return getResources().getDrawable(R.drawable.cell_rectangle_32);
+        else if(rank == 0)
+            return getResources().getDrawable(R.drawable.cell_rectangle_64);
+
+        return getResources().getDrawable(R.drawable.cell_rectangle_4096);
+    }
+
+    private void makeScoresRectangle(){
+        rScores = new Rectangle[numSquaresX * numSquaresY];
+        for(int i = 0; i < rScores.length; i++){
+            int row = i / 4;
+            int column = i - row * 4;
+            if(row % 2 == 1){
+                rScores[i] = calculateRectangle(3 - column, row, 1, 1);
+            }
+            else {
+                rScores[i] = calculateRectangle(column, row, 1, 1);
+            }
+        }
     }
 
 }

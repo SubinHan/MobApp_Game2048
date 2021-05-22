@@ -1,22 +1,20 @@
 package kr.ac.jbnu.se.mobile.game2048;
 
+import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Typeface;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.LayerDrawable;
-import android.graphics.drawable.ScaleDrawable;
 import android.util.Log;
 import android.view.View;
 
-import java.util.ArrayList;
-
-public class MainView extends View {
+public class SettingsView extends View {
 
     //Internal Constants
     private static final String TAG = GameView.class.getSimpleName();
@@ -27,9 +25,15 @@ public class MainView extends View {
     public int endingX;
     public int endingY;
 
-    Rectangle rStart;
-    Rectangle rHighscore;
-    Rectangle rSettings;
+    Rectangle rBackgroundMusic;
+    Rectangle rNotification;
+    Rectangle rBackgroundMusicCheck;
+    Rectangle rNotificationCheck;
+    Rectangle rTimer;
+    Rectangle rTimerNumber;
+    Rectangle rTimerUp;
+    Rectangle rTimerDown;
+    Rectangle rBack;
     //Text
     private float bodyTextSize;
     //Layout variables
@@ -40,12 +44,20 @@ public class MainView extends View {
     private Drawable backgroundRectangle;
     private Bitmap background = null;
 
+    private Drawable dBgmCheck, dNotificationCheck, dCheckTrue, dCheckFalse, dUp, dDown;
+
+    //Preferences
+    private SharedPreferences appData;
+    private boolean isBgmChecked;
+    private boolean isNotificationChecked;
+    private int timerNum;
+
     Context context;
 
     private final int numSquaresX = 4;
     private final int numSquaresY = 4;
 
-    public MainView(Context context) {
+    public SettingsView(Context context) {
         super(context);
 
         this.context = context;
@@ -58,10 +70,34 @@ public class MainView extends View {
             Typeface font = Typeface.createFromAsset(resources.getAssets(), "ClearSans-Bold.ttf");
             paint.setTypeface(font);
             paint.setAntiAlias(true);
-
         } catch (Exception e) {
             Log.e(TAG, "Error getting assets?", e);
         }
+        appData = context.getSharedPreferences("appData", context.MODE_PRIVATE);
+        loadSp();
+
+
+        Drawable d;
+        d = getResources().getDrawable(R.drawable.ic_check).getConstantState().newDrawable();
+        int padding = 25;
+        LayerDrawable ld;
+        ld = new LayerDrawable(new Drawable[]{d});
+        ld.setLayerInset(0, padding, padding, padding, padding);
+        ld.setAlpha(255);
+        dCheckTrue = ld.getConstantState().newDrawable().mutate();
+        ld.setAlpha(100);
+        dCheckFalse = ld.getConstantState().newDrawable().mutate();
+
+        padding = 80;
+        d = getResources().getDrawable(R.drawable.ic_up).getConstantState().newDrawable();
+        ld = new LayerDrawable(new Drawable[]{d});
+        ld.setLayerInset(0, padding, padding, padding, padding);
+        dUp = ld;
+
+        d = getResources().getDrawable(R.drawable.ic_down).getConstantState().newDrawable();
+        ld = new LayerDrawable(new Drawable[]{d});
+        ld.setLayerInset(0, padding, padding, padding, padding);
+        dDown = ld;
     }
 
     private static int log2(int n) {
@@ -112,14 +148,27 @@ public class MainView extends View {
     }
 
     private void drawCells(Canvas canvas) {
-        drawCell(canvas, rStart, getResources().getDrawable(R.drawable.cell_rectangle_4), "Start Game", getResources().getColor(R.color.black));
-        drawCell(canvas, rHighscore, getResources().getDrawable(R.drawable.cell_rectangle_8), "Highscore", getResources().getColor(R.color.text_white));
-        drawCell(canvas, rSettings, getResources().getDrawable(R.drawable.cell_rectangle_1024), "", -1);
-        Drawable d = getResources().getDrawable(R.drawable.ic_settings);
-        LayerDrawable layerDrawable = new LayerDrawable(new Drawable[]{d});
-        int padding = 25;
-        layerDrawable.setLayerInset(0, padding, padding, padding, padding);
-        drawCell(canvas, rSettings, layerDrawable, "", -1);
+        if(isBgmChecked)
+            dBgmCheck = dCheckTrue;
+        else
+            dBgmCheck = dCheckFalse;
+
+        if(isNotificationChecked)
+            dNotificationCheck = dCheckTrue;
+        else
+            dNotificationCheck = dCheckFalse;
+
+
+
+        drawCell(canvas, rBackgroundMusic, getResources().getDrawable(R.drawable.cell_rectangle_4), "Background Music", getResources().getColor(R.color.black));
+        drawCell(canvas, rBackgroundMusicCheck, dBgmCheck, "", -1);
+        drawCell(canvas, rNotification, getResources().getDrawable(R.drawable.cell_rectangle_4), "Notification", getResources().getColor(R.color.black));
+        drawCell(canvas, rNotificationCheck, dNotificationCheck, "", -1);
+        drawCell(canvas, rTimer, getResources().getDrawable(R.drawable.cell_rectangle_4), "Timer", getResources().getColor(R.color.black));
+        drawCell(canvas, rTimerNumber, getResources().getDrawable(R.drawable.cell_rectangle_2), "" + timerNum, getResources().getColor(R.color.white));
+        drawCell(canvas, rTimerUp, dUp, "", -1);
+        drawCell(canvas, rTimerDown, dDown, "", -1);
+        drawCell(canvas, rBack, getResources().getDrawable(R.drawable.cell_rectangle_4), "Back", getResources().getColor(R.color.black));
     }
 
     private Rectangle calculateRectangle(int posX, int posY, int sizeX, int sizeY){
@@ -182,17 +231,30 @@ public class MainView extends View {
         paint.setTextSize(cellSize);
         bodyTextSize = (int) (textSize / 1.5);
 
-        rStart = calculateRectangle(0, 0, 3, 2);
-        rHighscore = calculateRectangle(0, 2, 2, 1);
-        rSettings = calculateRectangle(3, 3, 1, 1);
+        rBackgroundMusic = calculateRectangle(0, 0, 3, 1);
+        rNotification = calculateRectangle(0, 1, 3, 1);
+        rBackgroundMusicCheck = calculateRectangle(3, 0, 1, 1);
+        rNotificationCheck = calculateRectangle(3, 1, 1, 1);
+        rTimer = calculateRectangle(0, 2, 1, 1);
+        rTimerNumber = calculateRectangle(1, 2, 1, 1);
+        rTimerUp = calculateRectangle(2, 2, 1, 1);
+        rTimerDown = calculateRectangle(3, 2, 1, 1);
+        rBack = calculateRectangle(3, 3, 1, 1);
 
         InputListener inputListener = new InputListener(this);
+
         inputListener.addClickInputHandler(new IClickInputHandler() {
             @Override
             public void handle(float touchPosX, float touchPosY) {
-                if(isInRange(touchPosX, touchPosY, rStart)){
-                    Intent intent = new Intent(context, GameActivity.class);
-                    ((MainActivity)context).startActivityForResult(intent, 0);
+                if(isInRange(touchPosX, touchPosY, rBackgroundMusicCheck)) {
+                    isBgmChecked = !isBgmChecked;
+                    saveMusicSp(isBgmChecked);
+
+                    Intent intent = new Intent(context, MusicService.class);
+                    intent.putExtra(MusicService.MESSEAGE_KEY, isBgmChecked);
+                    context.startService(intent);
+
+                    invalidate();
                 }
             }
         });
@@ -200,9 +262,10 @@ public class MainView extends View {
         inputListener.addClickInputHandler(new IClickInputHandler() {
             @Override
             public void handle(float touchPosX, float touchPosY) {
-                if(isInRange(touchPosX, touchPosY, rHighscore)){
-                    Intent intent = new Intent(context, HighscoreActivity.class);
-                    context.startActivity(intent);
+                if(isInRange(touchPosX, touchPosY, rNotificationCheck)) {
+                    isNotificationChecked = !isNotificationChecked;
+                    saveNotificationSp(isNotificationChecked);
+                    invalidate();
                 }
             }
         });
@@ -210,9 +273,32 @@ public class MainView extends View {
         inputListener.addClickInputHandler(new IClickInputHandler() {
             @Override
             public void handle(float touchPosX, float touchPosY) {
-                if(isInRange(touchPosX, touchPosY, rSettings)){
-                    Intent intent = new Intent(context, SettingsActivity.class);
-                    context.startActivity(intent);
+                if(isInRange(touchPosX, touchPosY, rTimerUp)) {
+                    if(timerNum < 60)
+                        timerNum++;
+                    saveTimerSp(timerNum);
+                    invalidate();
+                }
+            }
+        });
+
+        inputListener.addClickInputHandler(new IClickInputHandler() {
+            @Override
+            public void handle(float touchPosX, float touchPosY) {
+                if(isInRange(touchPosX, touchPosY, rTimerDown)) {
+                    if(timerNum > 10)
+                        timerNum--;
+                    saveTimerSp(timerNum);
+                    invalidate();
+                }
+            }
+        });
+
+        inputListener.addClickInputHandler(new IClickInputHandler() {
+            @Override
+            public void handle(float touchPosX, float touchPosY) {
+                if(isInRange(touchPosX, touchPosY, rBack)){
+                    ((Activity)context).finish();
                 }
             }
         });
@@ -222,6 +308,35 @@ public class MainView extends View {
 
     private boolean isInRange(float posX, float posY, Rectangle range){
         return (range.getStartX() <= posX && posX <= range.getEndX()) && (range.getStartY() <= posY && posY <= range.getEndY());
+    }
+
+    private void loadSp(){//설정 값 불러오기, 존재하지 않을 시 기본값
+        isBgmChecked = appData.getBoolean("SAVE_MUSIC_DATA", false);
+        isNotificationChecked = appData.getBoolean("SAVE_NOTIFICATION_DATA", false);
+        timerNum = appData.getInt("SAVE_TIMER_DATA",30);
+    }
+
+    public void saveMusicSp(boolean value){
+        SharedPreferences.Editor editor = appData.edit();
+        editor.putBoolean("SAVE_MUSIC_DATA", value);
+        editor.apply();
+    }
+
+    public void saveNotificationSp(boolean value){
+        SharedPreferences.Editor editor = appData.edit();
+        editor.putBoolean("SAVE_NOTIFICATION_DATA", value);
+        editor.apply();
+    }
+
+    public void saveTimerSp(int time){
+        SharedPreferences.Editor editor = appData.edit();
+        editor.putInt("SAVE_TIMER_DATA", time);
+        editor.apply();
+    }
+
+    public int getTimerSp(){
+        timerNum = appData.getInt("SAVE_TIMER_DATA", 30);
+        return timerNum;
     }
 
 }

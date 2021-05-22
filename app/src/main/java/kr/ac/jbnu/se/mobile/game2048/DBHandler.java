@@ -9,18 +9,21 @@ import android.database.sqlite.SQLiteOpenHelper;
 public class DBHandler {
     SQLiteOpenHelper mHelper = null;
     SQLiteDatabase mDB = null;
+    public static final String COLUMN = "score";
 
     public DBHandler(Context context, String name){
         mHelper = new DBHelper(context, name, null, 1);
     }
 
     public static DBHandler open(Context context, String name){
+        if(context == null)
+            return null;
         return new DBHandler(context, name);
     }
 
     public Cursor select(){
         mDB = mHelper.getReadableDatabase();
-        Cursor mCursor = mDB.query("score",null, null, null, null, null, null);
+        Cursor mCursor = mDB.query(COLUMN,null, null, null, null, null, COLUMN + " DESC");
         return mCursor;
     }
 
@@ -28,9 +31,9 @@ public class DBHandler {
         mDB = mHelper.getWritableDatabase();
 
         ContentValues contentValues = new ContentValues();
-        contentValues.put("score", score);
+        contentValues.put(COLUMN, score);
 
-        mDB.insert("score", null, contentValues);
+        mDB.insert(COLUMN, null, contentValues);
     }
 
     public void close(){

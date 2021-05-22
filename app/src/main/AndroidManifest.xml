@@ -15,7 +15,7 @@
             android:enabled="true"></service>
 
         <receiver
-            android:name=".MyBroadcastReceiver"
+            android:name=".TimeTickReceiver"
             android:enabled="true">
             <intent-filter>
                 <action android:name="kr.ac.jbnu.se.mobile.game2048.ACTION_GAME_PAUSE"/>

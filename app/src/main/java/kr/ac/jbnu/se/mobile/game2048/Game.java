@@ -2,6 +2,7 @@ package kr.ac.jbnu.se.mobile.game2048;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.preference.PreferenceManager;
 
 
@@ -43,7 +44,6 @@ public class Game {
     AnimationGrid aGrid;
     boolean canUndo;
     public long score = 0;
-    long highScore = 0;
     long lastScore = 0;
     private long bufferScore = 0;
 
@@ -64,11 +64,6 @@ public class Game {
             grid.clearGrid();
         }
         aGrid = new AnimationGrid(numSquaresX, numSquaresY);
-        highScore = getHighScore();
-        if (score >= highScore) {
-            highScore = score;
-            recordHighScore();
-        }
         score = DebugTools.getStartingScore();
         gameState = GAME_NORMAL;
         addStartTiles();
@@ -105,21 +100,6 @@ public class Game {
         grid.insertTile(tile);
         aGrid.startAnimation(tile.getX(), tile.getY(), SPAWN_ANIMATION,
                 SPAWN_ANIMATION_TIME, MOVE_ANIMATION_TIME, null); //Direction: -1 = EXPANDING
-    }
-
-    private void recordHighScore() {
-        // TODO: Record Highscores with Database (with SnapshotData.java)
-
-        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(mContext);
-        SharedPreferences.Editor editor = settings.edit();
-        editor.putLong(HIGH_SCORE, highScore);
-        editor.apply();
-
-    }
-
-    private long getHighScore() {
-        SharedPreferences settings = PreferenceManager.getDefaultSharedPreferences(mContext);
-        return settings.getLong(HIGH_SCORE, -1);
     }
 
     private boolean firstRun() {
@@ -160,18 +140,6 @@ public class Game {
         grid.prepareSaveTiles();
         bufferScore = score;
         bufferGameState = gameState;
-    }
-
-    void revertUndoState() {
-        if (canUndo) {
-            canUndo = false;
-            aGrid.cancelAnimations();
-            grid.revertTiles();
-            score = lastScore;
-            gameState = lastGameState;
-            mView.refreshLastTime = true;
-            mView.invalidate();
-        }
     }
 
     boolean gameWon() {
@@ -227,12 +195,7 @@ public class Game {
                                 SPAWN_ANIMATION_TIME, MOVE_ANIMATION_TIME, null);
 
                         // Update the score
-                        score = score + merged.getValue();
-                        highScore = Math.max(score, highScore);
-                        if (score >= highScore) {
-                            highScore = score;
-                            recordHighScore();
-                        }
+                        score = score - merged.getValue();
 
                         // The mighty 2048 tile
                         if (merged.getValue() >= winValue() && !gameWon()) {
@@ -269,13 +232,8 @@ public class Game {
         }
     }
 
-    private void endGame(){
-
+    public void endGame(){
         aGrid.startAnimation(-1, -1, FADE_GLOBAL_ANIMATION, NOTIFICATION_ANIMATION_TIME, NOTIFICATION_DELAY_TIME, null);
-        if (score >= highScore) {
-            highScore = score;
-            recordHighScore();
-        }
         gameListener.gameOver(new SnapshotData(score));
     }
 
@@ -366,12 +324,6 @@ public class Game {
         } else {
             return startingMaxValue;
         }
-    }
-
-    void setEndlessMode() {
-        gameState = GAME_ENDLESS;
-        mView.invalidate();
-        mView.refreshLastTime = true;
     }
 
     boolean canContinue() {
